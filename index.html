@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>برنامه توانبخشی دوچرخه</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; }
+        body { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); min-height: 100vh; padding: 15px; color: #333; }
+        .container { max-width: 500px; margin: 0 auto; background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        h1 { text-align: center; color: #0288d1; margin-bottom: 20px; font-size: 20px; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; background: #f0f8ff; padding: 5px; border-radius: 12px; }
+        .tab { flex: 1; padding: 10px; background: transparent; border: none; border-radius: 8px; cursor: pointer; font-family: Tahoma; font-weight: bold; color: #555; transition: 0.3s; }
+        .tab.active { background: #0288d1; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .card-title { font-weight: bold; color: #0288d1; margin-bottom: 12px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+        
+        label { display: block; margin-bottom: 6px; font-size: 13px; color: #555; }
+        input[type="number"], input[type="text"], select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+        input:focus { outline: none; border-color: #4facfe; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; font-family: Tahoma; }
+        .btn-primary { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .slider-container { margin-bottom: 15px; }
+        .slider-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
+        input[type="range"] { width: 100%; accent-color: #0288d1; }
+
+        .stat-box { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+        .stat-box:last-child { border-bottom: none; }
+        .stat-value { font-weight: bold; color: #0288d1; }
+
+        .history-item { background: #e3f2fd; border-radius: 10px; padding: 12px; margin-bottom: 10px; border-right: 4px solid #0288d1; }
+        .history-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .history-details { font-size: 12px; color: #555; }
+
+        .loading { text-align: center; padding: 20px; color: #666; }
+        .status { text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; }
+        .status.online { background: #e8f5e9; color: #2e7d32; }
+        .status.offline { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚴‍♀️ برنامه توانبخشی دوچرخه</h1>
+        
+        <div id="connection-status" class="status offline">در حال اتصال به سرور...</div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('log')">ثبت تمرین</button>
+            <button class="tab" onclick="switchTab('history')">تاریخچه</button>
+            <button class="tab" onclick="switchTab('stats')">آمار</button>
+        </div>
+
+        <div id="log" class="tab-content active">
+            <div class="card">
+                <div class="card-title">⚙️ تنظیمات</div>
+                <label>وزن (کیلوگرم):</label>
+                <input type="number" id="user-weight" placeholder="مثلا: 65">
+                
+                <label>هدف روزانه (دقیقه):</label>
+                <input type="number" id="daily-goal" placeholder="مثلا: 30" value="30">
+                
+                <button class="btn btn-primary" onclick="saveSettings()" style="background:#FF9800;">💾 ذخیره تنظیمات</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📝 ثبت تمرین امروز</div>
+                <label>تاریخ:</label>
+                <input type="text" id="workout-date" readonly style="background:#f0f0f0; text-align:center;">
+                
+                <label>مدت زمان (دقیقه):</label>
+                <input type="number" id="duration" placeholder="مثلا: 20">
+                
+                <div class="slider-container">
+                    <div class="slider-label"><span>سطح مقاومت:</span><span id="resistance-val">1</span></div>
+                    <input type="range" id="resistance" min="1" max="10" value="1" oninput="document.getElementById('resistance-val').innerText = this.value">
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-label"><span>میزان درد (1 تا 10):</span><span id="pain-val">1</span></div>
+                    <input type="range" id="pain" min="1" max="10" value="1" oninput="document.getElementById('pain-val').innerText = this.value">
+                </div>
+
+                <label>یادداشت:</label>
+                <input type="text" id="notes" placeholder="مثلا: امروز زانو درد نداشت...">
+
+                <button class="btn btn-primary" onclick="saveWorkout()" id="save-btn">💾 ذخیره در سرور</button>
+            </div>
+        </div>
+
+        <div id="history" class="tab-content">
+            <div class="card">
+                <div class="card-title">📚 سوابق تمرینات</div>
+                <div id="history-list">
+                    <div class="loading">در حال بارگذاری از سرور...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="stats" class="tab-content">
+            <div class="card">
+                <div class="card-title">📊 آمار کلی</div>
+                <div class="stat-box"><span>تعداد کل جلسات:</span><span class="stat-value" id="stat-total-sessions">-</span></div>
+                <div class="stat-box"><span>مجموع دقایق:</span><span class="stat-value" id="stat-total-minutes">-</span></div>
+                <div class="stat-box"><span>میانگین درد:</span><span class="stat-value" id="stat-avg-pain">-</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bwfoavybnifyrjcpzuva.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_lL-ImwDUlxpcAdDhqron1Q_gd9OivoU';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function checkConnection() {
+            const { error } = await supabase.from('workouts').select('id').limit(1);
+            const statusEl = document.getElementById('connection-status');
+            if (error) {
+                statusEl.className = 'status offline';
+                statusEl.innerText = '❌ خطا در اتصال. لطفاً کلیدهای API را بررسی کنید.';
+            } else {
+                statusEl.className = 'status online';
+                statusEl.innerText = '✅ متصل به سرور Supabase';
+            }
+        }
+        checkConnection();
+
+        function gregorianToJalali(gy, gm, gd) {
+            var g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+            var jy = (gy <= 1600) ? 0 : 979;
+            gy -= (gy <= 1600) ? 621 : 1600;
+            var gy2 = (gm > 2) ? (gy + 1) : gy;
+            var days = (365 * gy) + (parseInt((gy2 + 3) / 4)) - (parseInt((gy2 + 99) / 100)) + (parseInt((gy2 + 399) / 400)) - 80 + gd + g_d_m[gm - 1];
+            jy += 33 * (parseInt(days / 12053)); days %= 12053;
+            jy += 4 * (parseInt(days / 1461)); days %= 1461;
+            if (days > 365) { jy += parseInt((days - 1) / 365); days = (days - 1) % 365; }
+            var jm = (days < 186) ? 1 + parseInt(days / 31) : 7 + parseInt((days - 186) / 30);
+            var jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+            return [jy, jm, jd];
+        }
+
+        function getTodayJalali() {
+            const now = new Date();
+            const j = gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+            return `${j[0]}/${String(j[1]).padStart(2, '0')}/${String(j[2]).padStart(2, '0')}`;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            if(tabId === 'history') loadHistory();
+            if(tabId === 'stats') loadStats();
+        }
+
+        function saveSettings() {
+            const weight = document.getElementById('user-weight').value;
+            const goal = document.getElementById('daily-goal').value;
+            localStorage.setItem('rehabSettings', JSON.stringify({ weight, goal }));
+            alert('✅ تنظیمات ذخیره شد');
+        }
+
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('rehabSettings') || '{}');
+            if(settings.weight) document.getElementById('user-weight').value = settings.weight;
+            if(settings.goal) document.getElementById('daily-goal').value = settings.goal;
+            document.getElementById('workout-date').value = getTodayJalali();
+        }
+
+        function calculateCalories(duration, weight, resistance) {
+            if (!weight || !duration) return 0;
+            const met = 3.5 + (resistance * 0.4); 
+            return Math.round(met * weight * (duration / 60));
+        }
+
+        async function saveWorkout() {
+            const duration = parseFloat(document.getElementById('duration').value);
+            const weight = parseFloat(document.getElementById('user-weight').value);
+            const resistance = parseInt(document.getElementById('resistance').value);
+            const pain = parseInt(document.getElementById('pain').value);
+            const date = document.getElementById('workout-date').value;
+            const notes = document.getElementById('notes').value;
+            const saveBtn = document.getElementById('save-btn');
+
+            if (!duration || duration <= 0) { alert('❌ لطفا مدت زمان را وارد کنید'); return; }
+            if (!weight) { alert('❌ لطفا وزن را وارد کنید'); return; }
+
+            saveBtn.disabled = true;
+            saveBtn.innerText = '⏳ در حال ذخیره...';
+
+            const calories = calculateCalories(duration, weight, resistance);
+
+            const { error } = await supabase
+                .from('workouts')
+                .insert([{ 
+                    date: date, 
+                    duration: duration, 
+                    resistance: resistance, 
+                    pain: pain, 
+                    notes: notes, 
+                    calories: calories,
+                    weight: weight 
+                }]);
+
+            if (error) {
+                alert('❌ خطا در ذخیره: ' + error.message);
+            } else {
+                alert('✅ تمرین با موفقیت در سرور ذخیره شد!');
+                document.getElementById('duration').value = '';
+                document.getElementById('notes').value = '';
+                document.getElementById('resistance').value = 1;
+                document.getElementById('pain').value = 1;
+                document.getElementById('resistance-val').innerText = 1;
+                document.getElementById('pain-val').innerText = 1;
+            }
+            
+            saveBtn.disabled = false;
+            saveBtn.innerText = '💾 ذخیره در سرور';
+        }
+
+        async function loadHistory() {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '<div class="loading">در حال بارگذاری از سرور...</div>';
+
+            const { data, error } = await supabase
+                .from('workouts')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) {
+                container.innerHTML = '<p style="text-align:center; color:#c62828;">❌ خطا: ' + error.message + '</p>';
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">هنوز تمرینی ثبت نشده است</p>';
+                return;
+            }
+
+            let html = '';
+            data.forEach(w => {
+                html += `
+                    <div class="history-item">
+                        <div class="history-header">
+                            <span>📅 ${w.date}</span>
+                            <span>⏱️ ${w.duration} دقیقه</span>
+                        </div>
+                        <div class="history-details">
+                            🔥 کالری: ${w.calories} | ⚙️ مقاومت: ${w.resistance}/10 | 😣 درد: ${w.pain}/10
+                            ${w.notes ? `<br>📝 ${w.notes}` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function loadStats() {
+            const { data, error } = await supabase.from('workouts').select('*');
+            
+            if (error || !data) return;
+
+            let totalSessions = data.length;
+            let totalMinutes = data.reduce((sum, w) => sum + (w.duration || 0), 0);
+            let totalPain = data.reduce((sum, w) => sum + (w.pain || 0), 0);
+
+            document.getElementById('stat-total-sessions').innerText = totalSessions;
+            document.getElementById('stat-total-minutes').innerText = totalMinutes;
+            document.getElementById('stat-avg-pain').innerText = totalSessions > 0 ? (totalPain / totalSessions).toFixed(1) : '-';
+        }
+
+        window.onload = loadSettings;
+    </script>
+</body>
+</html>
