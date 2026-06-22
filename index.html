@@ -25,9 +25,46 @@
         input[type="number"], input[type="text"], select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
         input:focus { outline: none; border-color: #4facfe; }
 
+        .date-field {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: Tahoma;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            margin-bottom: 12px;
+            transition: border-color 0.3s;
+            position: relative;
+        }
+        .date-field:hover, .date-field:focus { border-color: #4facfe; }
+        .date-field::after { content: ' 📅'; }
+
+        .date-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .date-row .date-field { margin-bottom: 0; flex: 1; }
+        .btn-today {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: Tahoma;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
         .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; font-family: Tahoma; }
         .btn-primary { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-sm { padding: 10px; font-size: 13px; width: auto; }
 
         .slider-container { margin-bottom: 15px; }
         .slider-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
@@ -45,6 +82,40 @@
         .status { text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; }
         .status.online { background: #e8f5e9; color: #2e7d32; }
         .status.offline { background: #ffebee; color: #c62828; }
+
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .filter-row .date-field { flex: 1; min-width: 120px; margin-bottom: 0; font-size: 13px; padding: 10px; }
+        .btn-filter { background: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-family: Tahoma; font-size: 13px; }
+        .btn-reset { background: #9E9E9E; color: white; padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-family: Tahoma; font-size: 13px; }
+
+        /* تقویم */
+        .calendar-modal {
+            display: none; position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        .calendar-modal.show { display: flex; }
+        .calendar-container {
+            background: white; border-radius: 15px; padding: 20px;
+            max-width: 350px; width: 90%; max-height: 90vh; overflow-y: auto;
+        }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .calendar-header button { background: #0288d1; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-family: Tahoma; }
+        .calendar-month { font-weight: bold; font-size: 16px; color: #0288d1; }
+        .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px; text-align: center; font-size: 12px; color: #666; font-weight: bold; }
+        .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 5px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .calendar-day:hover { background: #e3f2fd; }
+        .calendar-day.today { border: 2px solid #4CAF50; }
+        .calendar-day.empty { cursor: default; }
+        .calendar-day.empty:hover { background: transparent; }
+        .calendar-close { background: #f44336; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 15px; font-family: Tahoma; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -59,22 +130,24 @@
             <button class="tab" onclick="switchTab('stats')">آمار</button>
         </div>
 
+        <!-- ثبت تمرین -->
         <div id="log" class="tab-content active">
             <div class="card">
                 <div class="card-title">⚙️ تنظیمات</div>
                 <label>وزن (کیلوگرم):</label>
                 <input type="number" id="user-weight" placeholder="مثلا: 65">
-                
                 <label>هدف روزانه (دقیقه):</label>
                 <input type="number" id="daily-goal" placeholder="مثلا: 30" value="30">
-                
                 <button class="btn btn-primary" onclick="saveSettings()" style="background:#FF9800;">💾 ذخیره تنظیمات</button>
             </div>
 
             <div class="card">
-                <div class="card-title">📝 ثبت تمرین امروز</div>
-                <label>تاریخ:</label>
-                <input type="text" id="workout-date" readonly style="background:#f0f0f0; text-align:center;">
+                <div class="card-title">📝 ثبت تمرین</div>
+                <label>تاریخ تمرین:</label>
+                <div class="date-row">
+                    <div class="date-field" id="workout-date" onclick="openCalendarFor(this)">انتخاب تاریخ</div>
+                    <button class="btn-today" onclick="setTodayFor('workout-date')">امروز</button>
+                </div>
                 
                 <label>مدت زمان (دقیقه):</label>
                 <input type="number" id="duration" placeholder="مثلا: 20">
@@ -83,7 +156,6 @@
                     <div class="slider-label"><span>سطح مقاومت:</span><span id="resistance-val">1</span></div>
                     <input type="range" id="resistance" min="1" max="10" value="1" oninput="document.getElementById('resistance-val').innerText = this.value">
                 </div>
-
                 <div class="slider-container">
                     <div class="slider-label"><span>میزان درد (1 تا 10):</span><span id="pain-val">1</span></div>
                     <input type="range" id="pain" min="1" max="10" value="1" oninput="document.getElementById('pain-val').innerText = this.value">
@@ -91,196 +163,240 @@
 
                 <label>یادداشت:</label>
                 <input type="text" id="notes" placeholder="مثلا: امروز زانو درد نداشت...">
-
                 <button class="btn btn-primary" onclick="saveWorkout()" id="save-btn">💾 ذخیره در سرور</button>
             </div>
         </div>
 
+        <!-- تاریخچه -->
         <div id="history" class="tab-content">
+            <div class="card">
+                <div class="card-title">🔍 فیلتر تاریخ</div>
+                <div class="filter-row">
+                    <div class="date-field" id="filter-from" onclick="openCalendarFor(this)">از تاریخ</div>
+                    <div class="date-field" id="filter-to" onclick="openCalendarFor(this)">تا تاریخ</div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-filter" onclick="applyFilter()">🔍 فیلتر</button>
+                    <button class="btn-reset" onclick="resetFilter()">↻ پاک کردن</button>
+                </div>
+            </div>
             <div class="card">
                 <div class="card-title">📚 سوابق تمرینات</div>
                 <div id="history-list">
-                    <div class="loading">در حال بارگذاری از سرور...</div>
+                    <div class="loading">در حال بارگذاری...</div>
                 </div>
             </div>
         </div>
 
+        <!-- آمار -->
         <div id="stats" class="tab-content">
             <div class="card">
                 <div class="card-title">📊 آمار کلی</div>
                 <div class="stat-box"><span>تعداد کل جلسات:</span><span class="stat-value" id="stat-total-sessions">-</span></div>
                 <div class="stat-box"><span>مجموع دقایق:</span><span class="stat-value" id="stat-total-minutes">-</span></div>
                 <div class="stat-box"><span>میانگین درد:</span><span class="stat-value" id="stat-avg-pain">-</span></div>
+                <div class="stat-box"><span>مجموع کالری:</span><span class="stat-value" id="stat-total-calories">-</span></div>
             </div>
+        </div>
+    </div>
+
+    <!-- مودال تقویم -->
+    <div class="calendar-modal" id="calendar-modal">
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <button onclick="changeMonth(-1)">‹ ماه قبل</button>
+                <div class="calendar-month" id="calendar-month-year"></div>
+                <button onclick="changeMonth(1)">ماه بعد ›</button>
+            </div>
+            <div class="calendar-weekdays">
+                <div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div>
+            </div>
+            <div class="calendar-days" id="calendar-days"></div>
+            <button class="calendar-close" onclick="closeCalendar()">بستن</button>
         </div>
     </div>
 
     <script>
         const SUPABASE_URL = 'https://bwfoavybnifyrjcpzuva.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_lL-ImwDUlxpcAdDhqron1Q_gd9OivoU';
-
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3Zm9hdnlibmlmeXJqY3B6dXZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwNjcyNzUsImV4cCI6MjA5NzY0MzI3NX0.mzFnsXpH3UuO3aVaXFC0AYf-Y1El9vrogoeqeG8aIqc';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         async function checkConnection() {
             const { error } = await supabase.from('workouts').select('id').limit(1);
-            const statusEl = document.getElementById('connection-status');
-            if (error) {
-                statusEl.className = 'status offline';
-                statusEl.innerText = '❌ خطا در اتصال. لطفاً کلیدهای API را بررسی کنید.';
-            } else {
-                statusEl.className = 'status online';
-                statusEl.innerText = '✅ متصل به سرور Supabase';
-            }
+            const s = document.getElementById('connection-status');
+            if (error) { s.className='status offline'; s.innerText='❌ خطا: '+error.message; }
+            else { s.className='status online'; s.innerText='✅ متصل به سرور Supabase'; }
         }
         checkConnection();
 
-        function gregorianToJalali(gy, gm, gd) {
-            var g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-            var jy = (gy <= 1600) ? 0 : 979;
-            gy -= (gy <= 1600) ? 621 : 1600;
-            var gy2 = (gm > 2) ? (gy + 1) : gy;
-            var days = (365 * gy) + (parseInt((gy2 + 3) / 4)) - (parseInt((gy2 + 99) / 100)) + (parseInt((gy2 + 399) / 400)) - 80 + gd + g_d_m[gm - 1];
-            jy += 33 * (parseInt(days / 12053)); days %= 12053;
-            jy += 4 * (parseInt(days / 1461)); days %= 1461;
-            if (days > 365) { jy += parseInt((days - 1) / 365); days = (days - 1) % 365; }
-            var jm = (days < 186) ? 1 + parseInt(days / 31) : 7 + parseInt((days - 186) / 30);
-            var jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
-            return [jy, jm, jd];
+        // ===== تبدیل تاریخ =====
+        function gregorianToJalali(gy,gm,gd){var g_d_m=[0,31,59,90,120,151,181,212,243,273,304,334];var jy=(gy<=1600)?0:979;gy-=(gy<=1600)?621:1600;var gy2=(gm>2)?(gy+1):gy;var days=(365*gy)+(parseInt((gy2+3)/4))-(parseInt((gy2+99)/100))+(parseInt((gy2+399)/400))-80+gd+g_d_m[gm-1];jy+=33*(parseInt(days/12053));days%=12053;jy+=4*(parseInt(days/1461));days%=1461;if(days>365){jy+=parseInt((days-1)/365);days=(days-1)%365;}var jm=(days<186)?1+parseInt(days/31):7+parseInt((days-186)/30);var jd=1+((days<186)?(days%31):((days-186)%30));return[jy,jm,jd];}
+        function jalaliToGregorian(jy,jm,jd){var gy=(jy<=979)?621:1600;jy-=(jy<=979)?0:979;var days=(365*jy)+((parseInt(jy/33))*8)+(parseInt(((jy%33)+3)/4))+78+jd+((jm<7)?(jm-1)*31:((jm-7)*30)+186);gy+=400*(parseInt(days/146097));days%=146097;if(days>36524){gy+=100*(parseInt(--days/36524));days%=36524;if(days>=365)days++;}gy+=4*(parseInt(days/1461));days%=1461;if(days>365){gy+=parseInt((days-1)/365);days=(days-1)%365;}var gd=days+1;var sal_a=[0,31,((gy%4===0&&gy%100!==0)||(gy%400===0))?29:28,31,30,31,30,31,31,30,31,30,31];var gm;for(gm=0;gm<13&&gd>sal_a[gm];gm++)gd-=sal_a[gm];return[gy,gm,gd];}
+        function getTodayJalali(){const n=new Date();const j=gregorianToJalali(n.getFullYear(),n.getMonth()+1,n.getDate());return j[0]+'/'+String(j[1]).padStart(2,'0')+'/'+String(j[2]).padStart(2,'0');}
+
+        // ===== سیستم تقویم عمومی =====
+        let currentJalaliYear, currentJalaliMonth;
+        let activeDateField = null; // فیلدی که الان تقویم براش بازه
+
+        function openCalendarFor(element) {
+            activeDateField = element;
+            const today = new Date();
+            const j = gregorianToJalali(today.getFullYear(), today.getMonth()+1, today.getDate());
+            
+            // اگر فیلد قبلاً تاریخ داره، همون ماه رو نشون بده
+            const existingDate = element.dataset.date;
+            if (existingDate) {
+                const parts = existingDate.split('/');
+                currentJalaliYear = parseInt(parts[0]);
+                currentJalaliMonth = parseInt(parts[1]);
+            } else {
+                currentJalaliYear = j[0];
+                currentJalaliMonth = j[1];
+            }
+            renderCalendar();
+            document.getElementById('calendar-modal').classList.add('show');
         }
 
-        function getTodayJalali() {
-            const now = new Date();
-            const j = gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
-            return `${j[0]}/${String(j[1]).padStart(2, '0')}/${String(j[2]).padStart(2, '0')}`;
+        function closeCalendar() {
+            document.getElementById('calendar-modal').classList.remove('show');
+            activeDateField = null;
         }
 
+        function changeMonth(delta) {
+            currentJalaliMonth += delta;
+            if (currentJalaliMonth > 12) { currentJalaliMonth = 1; currentJalaliYear++; }
+            else if (currentJalaliMonth < 1) { currentJalaliMonth = 12; currentJalaliYear--; }
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const monthNames = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+            document.getElementById('calendar-month-year').textContent = monthNames[currentJalaliMonth-1]+' '+currentJalaliYear;
+            const container = document.getElementById('calendar-days');
+            container.innerHTML = '';
+
+            const g = jalaliToGregorian(currentJalaliYear, currentJalaliMonth, 1);
+            const firstDay = new Date(g[0], g[1]-1, g[2]);
+            const startDay = (firstDay.getDay() + 1) % 7;
+
+            let daysInMonth;
+            if (currentJalaliMonth <= 6) daysInMonth = 31;
+            else if (currentJalaliMonth <= 11) daysInMonth = 30;
+            else { const isLeap=(((currentJalaliYear-(currentJalaliYear>0?474:473))%2820+474+682)*682)%2816<682; daysInMonth=isLeap?30:29; }
+
+            for (let i=0;i<startDay;i++){const e=document.createElement('div');e.className='calendar-day empty';container.appendChild(e);}
+
+            const today=new Date();const tj=gregorianToJalali(today.getFullYear(),today.getMonth()+1,today.getDate());
+            const selectedDate = activeDateField ? activeDateField.dataset.date : '';
+
+            for (let day=1;day<=daysInMonth;day++){
+                const el=document.createElement('div');
+                el.className='calendar-day';
+                el.textContent=day;
+                if(currentJalaliYear===tj[0]&&currentJalaliMonth===tj[1]&&day===tj[2]) el.classList.add('today');
+                
+                const thisDateStr = currentJalaliYear+'/'+String(currentJalaliMonth).padStart(2,'0')+'/'+String(day).padStart(2,'0');
+                if (thisDateStr === selectedDate) { el.style.background='#0288d1'; el.style.color='white'; }
+                
+                el.onclick=function(){selectDate(day);};
+                container.appendChild(el);
+            }
+        }
+
+        function selectDate(day) {
+            const dateStr = currentJalaliYear+'/'+String(currentJalaliMonth).padStart(2,'0')+'/'+String(day).padStart(2,'0');
+            if (activeDateField) {
+                activeDateField.textContent = dateStr;
+                activeDateField.dataset.date = dateStr;
+            }
+            closeCalendar();
+        }
+
+        function setTodayFor(fieldId) {
+            const todayStr = getTodayJalali();
+            const el = document.getElementById(fieldId);
+            el.textContent = todayStr;
+            el.dataset.date = todayStr;
+        }
+
+        // ===== تب‌ها =====
         function switchTab(tabId) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tabId).classList.add('active');
-            if(tabId === 'history') loadHistory();
-            if(tabId === 'stats') loadStats();
+            if(tabId==='history') loadHistory();
+            if(tabId==='stats') loadStats();
         }
 
-        function saveSettings() {
-            const weight = document.getElementById('user-weight').value;
-            const goal = document.getElementById('daily-goal').value;
-            localStorage.setItem('rehabSettings', JSON.stringify({ weight, goal }));
-            alert('✅ تنظیمات ذخیره شد');
+        function saveSettings(){localStorage.setItem('rehabSettings',JSON.stringify({weight:document.getElementById('user-weight').value,goal:document.getElementById('daily-goal').value}));alert('✅ ذخیره شد');}
+        function loadSettings(){const s=JSON.parse(localStorage.getItem('rehabSettings')||'{}');if(s.weight)document.getElementById('user-weight').value=s.weight;if(s.goal)document.getElementById('daily-goal').value=s.goal;setTodayFor('workout-date');}
+        function calculateCalories(d,w,r){if(!w||!d)return 0;return Math.round((3.5+(r*0.4))*w*(d/60));}
+
+        // ===== ذخیره تمرین =====
+        async function saveWorkout(){
+            const duration=parseFloat(document.getElementById('duration').value);
+            const weight=parseFloat(document.getElementById('user-weight').value);
+            const resistance=parseInt(document.getElementById('resistance').value);
+            const pain=parseInt(document.getElementById('pain').value);
+            const date=document.getElementById('workout-date').dataset.date;
+            const notes=document.getElementById('notes').value;
+            const btn=document.getElementById('save-btn');
+            if(!date){alert('❌ تاریخ را انتخاب کنید');return;}
+            if(!duration||duration<=0){alert('❌ مدت زمان را وارد کنید');return;}
+            if(!weight){alert('❌ وزن را وارد کنید');return;}
+            btn.disabled=true;btn.innerText='⏳ در حال ذخیره...';
+            const calories=calculateCalories(duration,weight,resistance);
+            const{error}=await supabase.from('workouts').insert([{date,duration,resistance,pain,notes,calories,weight}]);
+            if(error){alert('❌ خطا: '+error.message);}
+            else{alert('✅ ذخیره شد!');document.getElementById('duration').value='';document.getElementById('notes').value='';document.getElementById('resistance').value=1;document.getElementById('pain').value=1;document.getElementById('resistance-val').innerText=1;document.getElementById('pain-val').innerText=1;setTodayFor('workout-date');}
+            btn.disabled=false;btn.innerText='💾 ذخیره در سرور';
         }
 
-        function loadSettings() {
-            const settings = JSON.parse(localStorage.getItem('rehabSettings') || '{}');
-            if(settings.weight) document.getElementById('user-weight').value = settings.weight;
-            if(settings.goal) document.getElementById('daily-goal').value = settings.goal;
-            document.getElementById('workout-date').value = getTodayJalali();
-        }
-
-        function calculateCalories(duration, weight, resistance) {
-            if (!weight || !duration) return 0;
-            const met = 3.5 + (resistance * 0.4); 
-            return Math.round(met * weight * (duration / 60));
-        }
-
-        async function saveWorkout() {
-            const duration = parseFloat(document.getElementById('duration').value);
-            const weight = parseFloat(document.getElementById('user-weight').value);
-            const resistance = parseInt(document.getElementById('resistance').value);
-            const pain = parseInt(document.getElementById('pain').value);
-            const date = document.getElementById('workout-date').value;
-            const notes = document.getElementById('notes').value;
-            const saveBtn = document.getElementById('save-btn');
-
-            if (!duration || duration <= 0) { alert('❌ لطفا مدت زمان را وارد کنید'); return; }
-            if (!weight) { alert('❌ لطفا وزن را وارد کنید'); return; }
-
-            saveBtn.disabled = true;
-            saveBtn.innerText = '⏳ در حال ذخیره...';
-
-            const calories = calculateCalories(duration, weight, resistance);
-
-            const { error } = await supabase
-                .from('workouts')
-                .insert([{ 
-                    date: date, 
-                    duration: duration, 
-                    resistance: resistance, 
-                    pain: pain, 
-                    notes: notes, 
-                    calories: calories,
-                    weight: weight 
-                }]);
-
-            if (error) {
-                alert('❌ خطا در ذخیره: ' + error.message);
-            } else {
-                alert('✅ تمرین با موفقیت در سرور ذخیره شد!');
-                document.getElementById('duration').value = '';
-                document.getElementById('notes').value = '';
-                document.getElementById('resistance').value = 1;
-                document.getElementById('pain').value = 1;
-                document.getElementById('resistance-val').innerText = 1;
-                document.getElementById('pain-val').innerText = 1;
-            }
-            
-            saveBtn.disabled = false;
-            saveBtn.innerText = '💾 ذخیره در سرور';
-        }
-
-        async function loadHistory() {
-            const container = document.getElementById('history-list');
-            container.innerHTML = '<div class="loading">در حال بارگذاری از سرور...</div>';
-
-            const { data, error } = await supabase
-                .from('workouts')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(50);
-
-            if (error) {
-                container.innerHTML = '<p style="text-align:center; color:#c62828;">❌ خطا: ' + error.message + '</p>';
-                return;
-            }
-
-            if (!data || data.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">هنوز تمرینی ثبت نشده است</p>';
-                return;
-            }
-
-            let html = '';
-            data.forEach(w => {
-                html += `
-                    <div class="history-item">
-                        <div class="history-header">
-                            <span>📅 ${w.date}</span>
-                            <span>⏱️ ${w.duration} دقیقه</span>
-                        </div>
-                        <div class="history-details">
-                            🔥 کالری: ${w.calories} | ⚙️ مقاومت: ${w.resistance}/10 | 😣 درد: ${w.pain}/10
-                            ${w.notes ? `<br>📝 ${w.notes}` : ''}
-                        </div>
-                    </div>
-                `;
+        // ===== تاریخچه با فیلتر =====
+        async function loadHistory(filterFrom, filterTo) {
+            const container=document.getElementById('history-list');
+            container.innerHTML='<div class="loading">در حال بارگذاری...</div>';
+            let query = supabase.from('workouts').select('*');
+            if(filterFrom) query = query.gte('date', filterFrom);
+            if(filterTo) query = query.lte('date', filterTo);
+            query = query.order('created_at',{ascending:false}).limit(50);
+            const{data,error}=await query;
+            if(error){container.innerHTML='<p style="color:#c62828;">❌ '+error.message+'</p>';return;}
+            if(!data||data.length===0){container.innerHTML='<p style="text-align:center;color:#999;padding:20px;">تمرینی یافت نشد</p>';return;}
+            let html='';
+            data.forEach(w=>{
+                html+=`<div class="history-item"><div class="history-header"><span>📅 ${w.date}</span><span>⏱️ ${w.duration} دقیقه</span></div><div class="history-details">🔥 کالری: ${w.calories} | ⚙️ مقاومت: ${w.resistance}/10 | 😣 درد: ${w.pain}/10${w.notes?'<br>📝 '+w.notes:''}</div></div>`;
             });
-            container.innerHTML = html;
+            container.innerHTML=html;
         }
 
-        async function loadStats() {
-            const { data, error } = await supabase.from('workouts').select('*');
-            
-            if (error || !data) return;
-
-            let totalSessions = data.length;
-            let totalMinutes = data.reduce((sum, w) => sum + (w.duration || 0), 0);
-            let totalPain = data.reduce((sum, w) => sum + (w.pain || 0), 0);
-
-            document.getElementById('stat-total-sessions').innerText = totalSessions;
-            document.getElementById('stat-total-minutes').innerText = totalMinutes;
-            document.getElementById('stat-avg-pain').innerText = totalSessions > 0 ? (totalPain / totalSessions).toFixed(1) : '-';
+        function applyFilter() {
+            const from = document.getElementById('filter-from').dataset.date || '';
+            const to = document.getElementById('filter-to').dataset.date || '';
+            loadHistory(from, to);
         }
 
-        window.onload = loadSettings;
+        function resetFilter() {
+            document.getElementById('filter-from').textContent = 'از تاریخ';
+            document.getElementById('filter-from').dataset.date = '';
+            document.getElementById('filter-to').textContent = 'تا تاریخ';
+            document.getElementById('filter-to').dataset.date = '';
+            loadHistory();
+        }
+
+        // ===== آمار =====
+        async function loadStats(){
+            const{data,error}=await supabase.from('workouts').select('*');
+            if(error||!data)return;
+            const n=data.length;
+            document.getElementById('stat-total-sessions').innerText=n;
+            document.getElementById('stat-total-minutes').innerText=data.reduce((s,w)=>s+(w.duration||0),0);
+            document.getElementById('stat-avg-pain').innerText=n>0?(data.reduce((s,w)=>s+(w.pain||0),0)/n).toFixed(1):'-';
+            document.getElementById('stat-total-calories').innerText=data.reduce((s,w)=>s+(w.calories||0),0);
+        }
+
+        window.onload=loadSettings;
     </script>
 </body>
 </html>
